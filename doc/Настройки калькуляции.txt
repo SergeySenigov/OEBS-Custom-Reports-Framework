@@ -1,0 +1,70 @@
+-- ведомость
+  select pap.PAYROLL_NAME, 
+         cak.CONCATENATED_SEGMENTS "Калькуляция", 
+         cak.SEGMENT1 "Компания",
+         cak.SEGMENT2 "Счет",
+         cak.SEGMENT3 "МВЗ",
+         cak.SEGMENT4 "Статья затрат",
+         cak.SEGMENT5 "Налог",
+         cak_p.CONCATENATED_SEGMENTS "Счет приост.выплат", 
+         cak_p.SEGMENT1 "Компания",
+         cak_p.SEGMENT2 "Счет",
+         cak_p.SEGMENT3 "МВЗ",
+         cak_p.SEGMENT4 "Статья затрат",
+         cak_p.SEGMENT5 "Налог"
+    from PAY_ALL_PAYROLLS_F pap
+       , PAY_COST_ALLOCATION_KEYFLEX cak
+       , PAY_COST_ALLOCATION_KEYFLEX cak_p
+   where sysdate between pap.EFFECTIVE_START_DATE and pap.EFFECTIVE_END_DATE
+     and pap.COST_ALLOCATION_KEYFLEX_ID = cak.COST_ALLOCATION_KEYFLEX_ID (+)
+     and pap.SUSPENSE_ACCOUNT_KEYFLEX_ID = cak_p.COST_ALLOCATION_KEYFLEX_ID (+)
+
+
+-- связь
+  select et.ELEMENT_NAME "Элемент", 
+         el.COSTABLE_TYPE TYPE,
+         --decode(el.COSTABLE_TYPE,'D','Распределение','F','Фикс.затраты','N','Без затрат','Ошибка') "Тип затрат",
+         cak.CONCATENATED_SEGMENTS "Калькуляция", 
+         cak.SEGMENT1 "Компания",
+         cak.SEGMENT2 "Счет",
+         cak.SEGMENT3 "МВЗ",
+         cak.SEGMENT4 "Статья затрат",
+         cak.SEGMENT5 "Налог",
+         cak_b.CONCATENATED_SEGMENTS "Балансир.cчет", 
+         cak_b.SEGMENT1 "Компания",
+         cak_b.SEGMENT2 "Счет",
+         cak_b.SEGMENT3 "МВЗ",
+         cak_b.SEGMENT4 "Статья затрат",
+         cak_b.SEGMENT5 "Налог"
+    from PAY_ELEMENT_LINKS_F el
+       , PAY_ELEMENT_TYPES_F et
+       , PAY_COST_ALLOCATION_KEYFLEX cak
+       , PAY_COST_ALLOCATION_KEYFLEX cak_b
+   where et.ELEMENT_TYPE_ID = el.ELEMENT_TYPE_ID
+     and sysdate between el.EFFECTIVE_START_DATE and el.EFFECTIVE_END_DATE
+     and sysdate between et.EFFECTIVE_START_DATE and et.EFFECTIVE_END_DATE
+     and el.COST_ALLOCATION_KEYFLEX_ID = cak.COST_ALLOCATION_KEYFLEX_ID(+)
+     and el.BALANCING_KEYFLEX_ID = cak_b.COST_ALLOCATION_KEYFLEX_ID(+)    
+     order by el.COSTABLE_TYPE, et.element_name
+
+
+-- Организация
+  select org.name "Организация", 
+         '' space,
+         cak.CONCATENATED_SEGMENTS "Калькуляция", 
+         cak.SEGMENT1 "Компания",
+         cak.SEGMENT2 "Счет",
+         cak.SEGMENT3 "МВЗ",
+         cak.SEGMENT4 "Статья затрат",
+         cak.SEGMENT5 "Налог"
+    from hr_all_organization_units org,
+         PAY_COST_ALLOCATION_KEYFLEX cak
+   where org.cost_allocation_keyflex_id = cak.COST_ALLOCATION_KEYFLEX_ID (+)
+   and org.internal_external_flag = 'INT'
+   and exists
+     (select 'DUMMY'
+      from hr_organization_information orgi
+      where orgi.organization_id = org.organization_id
+      and orgi.org_information1 = 'HR_ORG' )
+   order by org.name
+     
